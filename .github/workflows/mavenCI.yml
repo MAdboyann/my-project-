@@ -13,7 +13,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout the repository
       - name: Checkout code
         uses: actions/checkout@v3
 
@@ -24,4 +23,3 @@ jobs:
           image: maven:3.9.6-eclipse-temurin-17
           options: -v ${{ github.workspace }}:/workspace -w /workspace
           run: mvn clean install
-
