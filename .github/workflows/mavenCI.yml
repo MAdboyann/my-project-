@@ -50,7 +50,7 @@ jobs:
             docker compose down
 
             # Start MySQL and Spring Boot in detached mode
-            docker compose up -d
+            docker compose up --build -d
 
             # Wait until MySQL is healthy
             echo "Waiting for MySQL to be healthy..."
