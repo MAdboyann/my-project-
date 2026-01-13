@@ -1,25 +1,48 @@
-name: Java Maven CI
+name: Spring Boot CI/CD to EC2
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # 2. Build using Maven Docker image
-      - name: Build with Maven 3.9.6 + Eclipse Temurin 17
-        uses: addnab/docker-run-action@v3
-        with:
-          image: maven:3.9.6-eclipse-temurin-17
-          options: -v ${{ github.workspace }}:/workspace -w /workspace
-          run: mvn clean install -DskipTests
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Build Docker image
+        run: |
+          docker build -t expenses-tracker:latest .
+
+      - name: Save Docker image
+        run: |
+          docker save expenses-tracker:latest > image.tar
+
+      - name: Copy image to EC2
+        run: |
+          scp image.tar ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/ubuntu/
+
+      - name: Deploy on EC2
+        run: |
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            docker load < image.tar
+
+            docker stop expenses-tracker || true
+            docker rm expenses-tracker || true
+
+            docker run -d \
+              --name expenses-tracker \
+              -p 80:8080 \
+              --restart always \
+              expenses-tracker:latest
+          EOF
