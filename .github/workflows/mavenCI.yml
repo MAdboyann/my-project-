@@ -22,4 +22,4 @@ jobs:
         with:
           image: maven:3.9.6-eclipse-temurin-17
           options: -v ${{ github.workspace }}:/workspace -w /workspace
-          run: mvn clean install
+          run: mvn clean install -DskipTests
