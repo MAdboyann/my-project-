@@ -1,65 +1,23 @@
-name: Spring Boot CI/CD to EC2
+name: CI-CD Expense Tracker
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repository
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      # 2️⃣ Setup SSH access
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
-
-      # 3️⃣ Build Spring Boot Docker image
-      - name: Build Docker image
-        run: |
-          docker build -t expenses-tracker:latest .
-
-      # 4️⃣ Save Docker image to tar
-      - name: Save Docker image
-        run: |
-          docker save expenses-tracker:latest > image.tar
-
-      # 5️⃣ Copy image and compose file to EC2
-      - name: Copy files to EC2
-        run: |
-          scp image.tar docker-compose.yml ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/ubuntu/Expenses-Tracker-WebApp/
-
-      # 6️⃣ Deploy on EC2 using Docker Compose
-      - name: Deploy with Docker Compose
-        run: |
-          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            cd /home/ubuntu/Expenses-Tracker-WebApp
-
-            # Load Spring Boot image
-            docker load < image.tar
-
-            # Stop any existing containers
+      - name: Deploy to EC2 using SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /opt/expense-tracker
+            git pull origin main
             docker compose down
-
-            # Start MySQL and Spring Boot in detached mode
-            docker compose up --build -d
-
-            # Wait until MySQL is healthy
-            echo "Waiting for MySQL to be healthy..."
-            until [ "$(docker inspect -f '{{.State.Health.Status}}' mysql)" == "healthy" ]; do
-              echo "MySQL not ready yet..."
-              sleep 5
-            done
-            echo "MySQL is healthy. Application should start now."
-
-            # Show running containers
-            docker ps
-          EOF
+            docker compose build
+            docker compose up -d
