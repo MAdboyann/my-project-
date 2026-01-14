@@ -16,7 +16,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
           script: |
-            cd /opt/expense-tracker
+            cd /home/ubuntu/Expenses-Tracker-WebApp/
             git pull origin main
             docker compose down
             docker compose build
